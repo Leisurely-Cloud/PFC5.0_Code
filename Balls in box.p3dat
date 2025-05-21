@@ -1,0 +1,35 @@
+new
+
+title 'Balls in a box'
+
+domain extent -10.0 10.0
+
+cmat default model linear property kn 1.0e6
+
+wall generate box -5.0 5.0 onewall
+
+set random 40231
+
+ball generate radius 1.0 1.4 box -5.0 5.0 number 30
+
+ball attribute density 100.0
+
+set gravity 10.0
+
+save initial-state
+
+solve time 50.0
+
+save caseA-nodamping
+
+restore initial-state
+
+cmat default model linear property kn 1.0e6 ks 1.0e6 fric 0.25 dp_nratio 0.1
+
+cmat apply
+
+ball history id 1 zvelocity id 10
+
+solve time 50.0
+
+save caseB-damping

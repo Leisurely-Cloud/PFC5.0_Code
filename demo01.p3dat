@@ -1,0 +1,31 @@
+new
+set random 231
+domain extent -100 500 -100 500 -100 500
+
+
+
+; 定义生成球体阵列的函数，参数为行数、列数、半径、行间距
+def creatballs(rows, cols, radius)
+    y = 0
+    x = 0
+    z = 0
+    scale = 2*radius
+    ;方向间距，避免重叠
+    loop row (1, rows)
+         z= (row - 1) * scale
+        ; 计算当前行的Z坐标
+        x_offset =  (row - 1) * radius
+        ; 计算当前行的x方向偏移量，每行向左偏移一个半径
+        loop col (1, cols)
+            x = (col - 1) * 2 * radius + x_offset
+            ; 计算当前球的x坐标，保证球之间不重叠并有规律排列
+            command
+            ball create x [x] y [y] z [z] radius [radius]
+            ;创建球体，指定x/y/z坐标和半径
+            endcommand
+        endloop
+    endloop
+end
+
+@creatballs(9,9,15)
+; 调用函数，生成的球体 行，列，半径，用户皆可自定义

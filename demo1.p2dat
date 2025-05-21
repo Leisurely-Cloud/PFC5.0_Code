@@ -1,0 +1,30 @@
+new
+set random 231
+domain extent -100.0 100.0
+[r = 0.5]
+
+define ballcreat
+    x=0
+    y=0
+    y_scale=0.85
+    loop while y<8
+        y=y+1
+        x=0
+        loop while x < 7
+            x = x + 1
+            n = y % 2
+            caseof n
+                case 1
+                    command
+                        ball create x [x] y [y*y_scale] radius [r]
+                    endcommand
+                case 0
+                    command
+                        ball create x [x + 0.5] y [y*y_scale] radius [r]
+                    endcommand
+            endcase
+        endloop
+    endloop
+end
+
+@ballcreat

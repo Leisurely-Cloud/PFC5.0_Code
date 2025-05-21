@@ -1,0 +1,20 @@
+new
+set random 231
+domain extent -100.0 100.0
+define generate_balls(rows , cols , radius , scale , offset)
+    y = 0
+    x = 0
+    loop row (1, rows)
+    y = row * scale                                                 
+    loop col (1, cols)
+        x = col
+        if row % 2 = 0 then
+            x = x + offset
+        endif
+        command
+            ball create x [x] y [y] radius [radius]
+        endcommand
+    endloop
+  endloop
+end
+@generate_balls(8,7,0.5,0.85,0.5)

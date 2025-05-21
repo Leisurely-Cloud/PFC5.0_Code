@@ -1,0 +1,56 @@
+; fname: callbacks3.p3dat
+;
+; Demonstrate usage of the set fish callback command to insert balls at a given rate
+; while cycling and add fluid forces
+;==============================================================================
+restore settled
+
+[todelete = map()]
+define delete_balls
+  loop foreach key map.keys(todelete)
+    local ball = map.remove(todelete,key)
+    ball.delete(ball)  
+  endloop
+end
+
+set fish callback -12.0 @delete_balls
+set gravity 10.0 0.0 0.0
+
+save sink-initial
+
+; Register a function with the contact_create event
+define catch_contacts(cp)
+  if type.pointer(cp) # 'ball-facet' then
+    exit
+  endif
+  wfp = contact.end2(cp)
+  if wall.id(wall.facet.wall(wfp)) # 2 then
+    exit
+  endif
+  map.add(todelete,ball.id(contact.end1(cp)),contact.end1(cp))
+end
+set fish callback contact_create @catch_contacts 
+solve time 5.0
+save sink-final1
+
+; Register a function with the contact_activated event
+restore sink-initial
+
+define catch_contacts(arr)
+  local cp = arr(1)
+  if type.pointer(cp) # 'ball-facet' then
+    exit
+  endif
+  local wfp = contact.end2(cp)
+  if wall.id(wall.facet.wall(wfp)) # 2 then
+    exit
+  endif
+  map.add(todelete,ball.id(contact.end1(cp)),contact.end1(cp))
+end
+set fish callback contact_activated @catch_contacts 
+solve time 5.0
+save sink-final2
+
+return
+;==============================================================================
+; eof: callbacks3.p3dat

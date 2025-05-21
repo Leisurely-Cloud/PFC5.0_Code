@@ -1,0 +1,126 @@
+; fname: callbacks2.p3dat
+;
+; Demonstrate usage of the set fish callback command to insert balls at a given
+; rate while cycling and add applied forces to the balls
+;==============================================================================
+new
+set random 10001
+title 'Using FISH Callbacks'
+
+; Define the domain and the default contact model 
+domain extent -3 3
+cmat default model linear property kn 1.0e6 dp_nratio 0.5
+
+; Generate a box and set gravity
+wall generate box -2 2
+set gravity 10.0
+
+; Define the add_ball function, which will be registered as a fish callback
+; and will insert balls at a given frequency in the model
+define add_ball
+  local tcurrent = mech.age
+  if tcurrent < tnext then
+    exit
+  endif
+  tnext = tcurrent + freq
+  local xvel = (math.random.uniform -0.5) * 2.0
+  local yvel = (math.random.uniform -0.5) * 2.0
+  local bp = ball.create(0.3,vector(0.0,0.0,1.75))
+  ball.vel(bp) = vector(xvel,yvel,-2.0)
+  ball.density(bp) = 1.1e3
+  ball.damp(bp) = 0.1
+end
+; Set parameters and register the function add_ball with a fish callback at 
+; position -11.0 in the cycle sequence. Model components cannot be inserted 
+; in the model after the timestep has been evaluated, which corresponds to 
+; position 0.0 in the cycle sequence
+[freq = 0.25]
+[time_start = mech.age]
+[tnext  = time_start ]
+set fish callback -11.0 @add_ball
+
+
+; Define the add_fluidforces function, which will be registered as a fish 
+; callback and will apply fluid forces (buoyancy and drag) to the balls
+define add_fluidforces
+  global vf = 0.0
+  loop foreach ball ball.list
+    local vi = 0.0
+    local d1 = ball.pos.z(ball) - ball.radius(ball)
+    if ball.pos.z(ball) - ball.radius(ball) >= zf_ 
+      ; above water level
+      ball.force.app(ball) = vector(0.0,0.0,0.0)
+    else 
+      local fdrag = -6.0*math.pi*etaf_*ball.radius(ball)*ball.vel(ball)
+      local vbal = 4.0*math.pi*ball.radius(ball)^3 / 3.0
+      if ball.pos.z(ball) + ball.radius(ball) <= zf_ then
+        ; totally immerged
+        vi = 4.0*math.pi*ball.radius(ball)^3 / 3.0
+      else
+        ; partially immerged
+        if ball.pos.z(ball) >= zf_ then
+          global h = ball.radius(ball) - (ball.pos.z(ball)-zf_)
+          global vcap = math.pi*h^2*(3*ball.radius(ball) - h) /3.0
+          vi = vcap
+        else
+          h = ball.radius(ball) - (zf_ - ball.pos.z(ball))
+          vcap = math.pi*h^2*(3*ball.radius(ball) - h) /3.0
+          vi = vbal - vcap
+        endif
+      endif
+      global fb = -1.0*rhof_*vi*global.gravity
+      ball.force.app(ball) = fb + (vi/vbal) *fdrag
+    endif
+    vf = vf + vi
+  endloop
+end
+
+; Define the move_surface function, which will be registered as a fish 
+; callback and will update the fluid surface position to account for 
+; immersed balls volume
+define move_surface
+  zf_ = zf0_ + (vf/16.0)
+  loop foreach node geom.node.list(gset_)
+    geom.node.pos.z(node) = zf_
+  endloop
+end
+
+
+; Set parameters and create a polygon with the geometry logic to 
+; visualize the fluid surface. Store a pointer to the geometry set
+; to be used by the move_surface function.
+[rhof_ = 1.26e3]
+[zf0_ = -1.0]
+[zf_ = zf0_]
+[etaf_ = 1.49]
+geometry set surface polygon position -2.0 -2.0 @zf0_ ...
+                                       2.0 -2.0 @zf0_ ...
+                                       2.0  2.0 @zf0_ ...
+                                      -2.0  2.0 @zf0_ 
+[gset_ = geom.set.find('surface')]
+
+; Register the add_fluidforces and move_surface functions
+; at cycle points 50.0 and 50.1 in the cycle sequence respectively.
+; The operations will occur after force-displacement calculation, and 
+; the applied forces will affect the balls at the next step. 
+; The move_surface function will be called after fluid forces have been
+; applied to all the balls (and immersed volumes updated)
+set fish callback 50.0 @add_fluidforces 
+set fish callback 50.1 @move_surface 
+
+; Solve to a target time of 10.0 time-units
+solve time 10.0
+save fluid-intermediate
+
+; Continue cycling to an additional target time of 15.0 time-units
+; Note that the fish callback is still active
+solve time 15.0
+
+; Deactivate the add_ball fish callback and solve to equilibrium (default limit
+; corresponds to an average ratio of 1e-5) 
+set fish callback -11.0 remove @add_ball
+solve
+save fluid-final
+return
+;==============================================================================
+; eof: callbacks2.p3dat

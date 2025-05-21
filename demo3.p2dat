@@ -1,0 +1,58 @@
+; fname: callbacks1.p3dat
+;
+; Demonstrate usage of the set fish callback command to insert balls at a given
+; rate while cycling
+;
+;==============================================================================
+new
+set random 10001
+title 'Using FISH Callbacks'
+
+; Define the domain and the default contact model 
+domain extent -3 3
+cmat default model linear property kn 1.0e6 dp_nratio 0.5
+
+; Generate a box and set gravity
+wall generate box -2 2
+set gravity 10.0
+
+; Define the add_ball function, which will be registered as a fish callback
+; and will insert balls at a given frequency in the model
+define add_ball
+  local tcurrent = mech.age
+  if tcurrent < tnext then
+    exit
+  endif
+  tnext = tcurrent + freq
+  local xvel = (math.random.uniform -0.5) * 2.0
+  local yvel = (math.random.uniform -0.5) * 2.0
+  local bp = ball.create(0.3,vector(0.0,0.0,1.75))
+  ball.vel(bp) = vector(xvel,yvel,-2.0)
+  ball.density(bp) = 1.1e3
+  ball.damp(bp) = 0.1
+end
+; Set parameters and register the function add_ball with a fish callback at 
+; position -11.0 in the cycle sequence. Model components cannot be inserted 
+; in the model after the timestep has been evaluated, which corresponds to 
+; position 0.0 in the cycle sequence
+[freq = 0.25]
+[time_start = mech.age]
+[tnext  = time_start ]
+set fish callback -11.0 @add_ball
+
+; Solve to a target time of 10.0 time-units
+solve time 10.0
+save intermediate
+
+; Continue cycling to an additional target time of 15.0 time-units
+; Note that the fish callback is still active
+solve time 15.0
+
+; Deactivate the fish callback and solve to equilibrium (default limit corresponds
+; to an average ratio of 1e-5) 
+set fish callback -11.0 remove @add_ball
+solve
+save settled
+return
+;==============================================================================
+; eof: callbacks1.p3dat

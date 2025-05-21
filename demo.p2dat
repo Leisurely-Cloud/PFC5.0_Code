@@ -1,0 +1,97 @@
+new
+
+set random 231
+
+domain extent -1000.0 1000.0
+
+wall creat group 'high' id 1 name 'high_one' vertices (0,0) (0,80)
+wall creat group 'high' id 5 name 'high_two' vertices (50,0) (50,80)
+
+wall creat group 'wide' id 2 name 'wide_one' vertices (0,0) (22.5,0)
+wall creat group 'wide' id 3 name 'wide_two' vertices (22.5,0) (27.5,0)
+wall creat group 'wide' id 4 name 'wide_three' vertices (27.5,0) (50,0)
+wall creat group 'wide' id 6 name 'wide_four' vertices (0,80) (50,80)
+
+wall property kn 1.0e9 ks 1.0e9 fric 0.5
+
+set gravity 10.0
+
+ball distribute radius 0.4 0.65 box 0 50 0 40
+ball attribute density 3500.0 range y 0 40
+
+ball group ore range y 0 40
+
+ball distribute radius 0.4 0.65 box 0 50 40 80
+ball attribute density 2000.0 range y 40 80
+
+ball group rock range y 40 80
+
+cmat default model linear property kn 1.0e8 ks 1.0e8 fric 0.5
+
+cycle 2000 calm 20
+solve aratio 1e-2
+
+def Record_ball 
+    loop foreach local bp ball.list
+        ball.extra(bp,1)= ball.pos.x(bp)
+        ball.extra(bp,2)= ball.pos.y(bp)
+        ball.extra(bp,3)=ball.radius(bp)
+    endloop
+end
+@Record_ball
+
+
+
+
+wall creAt group 'frame' id 7 name 'frame_one' vertices (-20,0) (-20,-100)
+wall creAt group 'frame' id 8 name 'frame_two' vertices (70,0) (70,-100)
+wall creAt group 'frame' id 9 name 'frame_three' vertices (-20,-100) (70,-100)
+
+wall delete range id 4
+[temp = 0]
+
+def HaltControl
+    loop foreach local bp ball.list
+        if ball.pos.y(bp) < 0.0
+            if ball.extra(bp,2) >= 50.0
+            command 
+            wall create group 'wide' id 3 name 'wide_two' vertices (22.5,0) (27.5,0)
+            endcommand
+            temp = 1
+            endif
+            HaltControl = temp
+        endif
+    endloop
+end
+
+solve fishhalt @Haltcontrol
+solve time 2.0
+
+[ore_mass_drawn = 0.0]
+[rock_mass_drawn = 0.0]
+[Dilution_rate = 0.0]
+
+def Count_dilution_rate
+    loop foreach local bp ball.list
+        if ball.pos.y(bp) < 0.0
+            if ball.group(bp)='ore'
+                ore_mass_drawn = ore_mass_drawn + ball.mass.real(bp)
+            endif
+            if ball.group(bp) = 'rock'
+                rock_mass_drawn = rock_mass_drawn + ball.mass.real(bp)
+            endif
+        endif
+    endloop
+    Dilution_rate = rock_mass_drawn / (ore_mass_drawn + rock_mass_drawn)
+end
+
+@Count_dilution_rate
+list @Dilution_rate
+;list fish Dilution_rate
+save drawing1
+return
+;cycle 200 calm 50
+;solve aratio 1e-3
+
+
+
